@@ -2,4 +2,4 @@
 *.o
 *.hex
 *.elf
-doc/built/*
+doc/build/*
