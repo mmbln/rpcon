@@ -60,7 +60,6 @@ static void processCmd(const char *cmd, const char *param, int socket)
       putMessage("switchOn", NULL);
       pthread_cond_signal(&cond);
       pthread_mutex_unlock(&raspyMutex);
-      printf("On Mode\n");
     } else if (strcmp(param, "Off") == 0) {
       /* switch off */
       pthread_mutex_lock(&raspyMutex);
@@ -68,13 +67,11 @@ static void processCmd(const char *cmd, const char *param, int socket)
       putMessage("switchOff", NULL);
       pthread_cond_signal(&cond);
       pthread_mutex_unlock(&raspyMutex);
-      printf("Off Mode\n");
     } else if (strcmp(param, "Automatic") == 0) {
       /* switch to automatic */
       pthread_mutex_lock(&raspyMutex);
       gMode = automaticMode;
       pthread_mutex_unlock(&raspyMutex);
-      printf("Automatic Mode\n");
     } else {
       /* error */
       /* TODO */
@@ -100,6 +97,7 @@ static void *threading_socket (void *arg) {
 
   pthread_detach (pthread_self ());
   
+  memset(recvBuffer, 0, MAX_SIZE);
   socket = (int)arg;
   recv(socket, recvBuffer, MAX_SIZE-1, 0); 
 
@@ -111,7 +109,7 @@ static void *threading_socket (void *arg) {
       printf("JSON Strange Format: %s", recvBuffer);
     }
   } else {
-    printf("No JSON sting: %s", recvBuffer);
+    printf("No JSON string: %s\n   Error: 0x%8x", recvBuffer, jsonError);
   }    
   /* release memory */
   json_decref(root);
