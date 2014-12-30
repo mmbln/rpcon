@@ -21,11 +21,19 @@ char gTimeStr[18];
 enum globMode gMode;
 enum globCommand gCommand;
 
+unsigned char gDigit;
+unsigned char gFrequence;
+unsigned char gRelais;
+
+
 int main (void) {
   static pthread_t conThread, timerThread, jsonThread;
 
   gMode = automaticMode;
-  
+  gDigit = 0;
+  gFrequence = 0;
+  gRelais = 0;
+
   fifoInit();
 
   /* Start the timer thread */

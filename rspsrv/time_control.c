@@ -9,6 +9,7 @@
 #include <math.h>
 
 #include "rspsrv.h"
+#include "fifo.h"
 
 extern pthread_mutex_t raspyMutex;
 extern pthread_mutex_t timeMutex;
@@ -16,8 +17,7 @@ extern pthread_cond_t cond;
 extern char gTimeStr[];
 
 extern void fifoInit(void);
-extern int putMessage(char *, char *);
-extern int getMessage(char *, char *);
+extern int putMessage(int, int);
 
 extern enum globMode gMode;
 
@@ -141,11 +141,11 @@ void *timeControl(void *arg)
     if (timeNow > swt.switchOffTime && timeNow < swt.switchOnTime) {
       /* switch off */
       pthread_mutex_lock(&raspyMutex);
-      putMessage("switchOff", NULL);
+      putMessage(FF_SWITCH_OFF, 0);
     } else {
       /* switch on */
       pthread_mutex_lock(&raspyMutex);
-      putMessage("switchOn", NULL);
+      putMessage(FF_SWITCH_ON, 0);
     }
     pthread_cond_signal(&cond);
     pthread_mutex_unlock(&raspyMutex);

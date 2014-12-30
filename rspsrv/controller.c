@@ -2,21 +2,26 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <pthread.h>
 
 #include "rspsrv.h"
+#include "fifo.h"
 
 extern pthread_mutex_t raspyMutex;
 extern pthread_mutex_t timeMutex;
 extern pthread_cond_t cond;
 
 extern void fifoInit(void);
-extern int putMessage(char *, char *);
-extern int getMessage(char *, char *);
+extern int putMessage(int, int);
+extern int getMessage(int *, int *);
 
 #define  MAX_SIZE  1024
 
+extern unsigned char gDigit;
+extern unsigned char gFrequence;
+extern unsigned char gRelais;
 
 
 int i2c_readInt(unsigned char add, unsigned int *val)
@@ -155,40 +160,43 @@ int i2c_writeChar(unsigned char add, unsigned char val)
 #endif
 }
 
-
+unsigned char parameterToNumber(char *p)
+{
+  return atoi(p) & 0xff;
+}
 
 void *controller(void *arg)
 {
-  char command[MAX_SIZE];
-  char parameter[MAX_SIZE];
+  int command;
+  int parameter;
   unsigned char res;
 
   while(1) {
     pthread_mutex_lock(&raspyMutex);
     pthread_cond_wait(&cond, &raspyMutex);
     /* new message */
-    while (getMessage(command, parameter) != 0) {
-      if (strcmp(command, "switchOn") == 0) {
-	// 
+    while (getMessage(&command, &parameter) != 0) {
+      if (command == FF_SWITCH_ON) {
 	i2c_writeChar(0x01, 0x03);
-      } else if (strcmp(command, "switchOff") == 0) {
-	//
+	gRelais = 3;
+      } else if (command == FF_SWITCH_OFF) {
 	i2c_writeChar(0x01, 0x0);
-      } else if (strcmp(command, "getSwitch") == 0) {
-	//
+	gRelais = 0;
+      } else if (command == FF_GET_SWITCH) {
 	i2c_readChar(0x01, &res);
-      } else if (strcmp(command, "setDigit") == 0) {
-	// TODO 0 parameter
-	i2c_writeChar(0x02, 0);
-      } else if (strcmp(command, "getDigit") == 0) {
-	//
+	gRelais = res;
+      } else if (command == FF_SET_DIGIT) {
+	i2c_writeChar(0x02, parameter);
+	gDigit = (unsigned char)parameter;
+      } else if (command == FF_GET_DIGIT) {
 	i2c_readChar(0x02, &res);
-      } else if (strcmp(command, "setFrequence") == 0) {
-	// TODO 0 parameter
-	i2c_writeChar(0x03, 0);
-      } else if (strcmp(command, "getFrequence") == 0) {
-	//
+	gDigit = res;
+      } else if (command == FF_SET_FREQUENCE) {
+	i2c_writeChar(0x03, parameter);
+	gFrequence = (unsigned char)parameter;
+      } else if (command == FF_GET_FREQUENCE) {
 	i2c_readChar(0x03, &res);
+	gFrequence = res;
       }
     }
     pthread_mutex_unlock(&raspyMutex);

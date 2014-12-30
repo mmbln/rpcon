@@ -15,6 +15,7 @@
 #include <jansson.h>
 
 #include "rspsrv.h"
+#include "fifo.h"
 
 #define  MAX_SIZE  1024
 #define  PORT_NUMBER  6001
@@ -25,6 +26,9 @@ extern pthread_cond_t cond;
 
 extern char gTimeStr[];
 extern enum globMode gMode;
+extern unsigned char gDigit;
+extern unsigned char gFrequence;
+extern unsigned char gRelais;
 
 static void * threading_socket( void *);
 
@@ -44,27 +48,46 @@ static void processCmd(const char *cmd, const char *param, int socket)
     pthread_mutex_unlock(&timeMutex);
   } else if (strcmp(cmd, "getSwitchState") == 0) {
     /* get the current state of the relais */
-    sprintf(sendBuffer, "{\"result\": \"%s\"}\n", "true");
+    pthread_mutex_lock(&raspyMutex);
+    putMessage(FF_GET_SWITCH, 0);
+    pthread_cond_signal(&cond);
+    sprintf(sendBuffer, "{\"result\": \"%d\"}\n", gRelais);
+    pthread_mutex_unlock(&raspyMutex);
   } else if (strcmp(cmd, "getNextSwitchTimes") == 0) {
-    /* get the next switch time */
+    /* TODO get the next switch time */
     sprintf(sendBuffer, "{\"result\": \"%s\"}\n", "true");
   } else if (strcmp(cmd, "getMode") == 0) {
     /* get the current mode */
-    sprintf(sendBuffer, "{\"result\": \"%s\"}\n", "true");
+    pthread_mutex_lock(&raspyMutex);
+    switch (gMode) {
+    case automaticMode:
+      sprintf(sendBuffer, "{\"result\": \"automatic\"}\n");
+      break;
+    case onMode:
+      sprintf(sendBuffer, "{\"result\": \"on\"}\n");
+      break;
+    case offMode:
+      sprintf(sendBuffer, "{\"result\": \"off\"}\n");
+      break;
+    default:
+      sprintf(sendBuffer, "{\"result\": \"undefined\"}\n");
+      break;
+    }
+    pthread_mutex_unlock(&raspyMutex);
   } else if (strcmp(cmd, "setMode") == 0) {
     /* set the current mode */
     if (strcmp(param, "On") == 0) {
       /* switch on */
       pthread_mutex_lock(&raspyMutex);
       gMode = onMode;
-      putMessage("switchOn", NULL);
+      putMessage(FF_SWITCH_ON, 0);
       pthread_cond_signal(&cond);
       pthread_mutex_unlock(&raspyMutex);
     } else if (strcmp(param, "Off") == 0) {
       /* switch off */
       pthread_mutex_lock(&raspyMutex);
       gMode = offMode;
-      putMessage("switchOff", NULL);
+      putMessage(FF_SWITCH_OFF, 0);
       pthread_cond_signal(&cond);
       pthread_mutex_unlock(&raspyMutex);
     } else if (strcmp(param, "Automatic") == 0) {
@@ -76,6 +99,28 @@ static void processCmd(const char *cmd, const char *param, int socket)
       /* error */
       /* TODO */
     }
+    sprintf(sendBuffer, "{\"result\": \"%s\"}\n", "true");
+  } else if (strcmp(cmd, "getFrequence") == 0) {
+    /* get the frequence */
+    pthread_mutex_lock(&raspyMutex);
+    sprintf(sendBuffer, "{\"result\": \"%d\"}\n", gFrequence);
+    pthread_mutex_unlock(&raspyMutex);
+  } else if (strcmp(cmd, "getDigit") == 0) {
+    /* get the digit */
+    pthread_mutex_lock(&raspyMutex);
+    sprintf(sendBuffer, "{\"result\": \"%d\"}\n", gDigit);
+    pthread_mutex_unlock(&raspyMutex);
+  } else if (strcmp(cmd, "setFrequence") == 0) {
+    /* set the current frequence */
+    pthread_mutex_lock(&raspyMutex);
+    putMessage(FF_SET_FREQUENCE, (unsigned char)atoi(param));
+    pthread_mutex_unlock(&raspyMutex);
+    sprintf(sendBuffer, "{\"result\": \"%s\"}\n", "true");
+  } else if (strcmp(cmd, "setDigit") == 0) {
+    /* set the current digit */
+    pthread_mutex_lock(&raspyMutex);
+    putMessage(FF_SET_DIGIT, (unsigned char)atoi(param));
+    pthread_mutex_unlock(&raspyMutex);
     sprintf(sendBuffer, "{\"result\": \"%s\"}\n", "true");
   } else {
     /* error unknown command */

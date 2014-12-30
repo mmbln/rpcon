@@ -2,10 +2,14 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "fifo.h"
+
+
+
 
 struct message {
-  char *command;
-  char *parameter;
+  int command;
+  int parameter;
   struct message *next;
 } *queue_start;
 int queue_length;
@@ -18,7 +22,7 @@ extern void fifoInit()
 }
 
 
-extern int putMessage(char *cmd, char *params)
+extern int putMessage(int cmd, int params)
 {
   struct message *msgPtr;
 
@@ -27,24 +31,8 @@ extern int putMessage(char *cmd, char *params)
     printf("Exit, not enough memory\n");
     exit(1);
   }
-  newMsg->command = malloc(strlen(cmd)+1);
-  if (newMsg->command == NULL) {
-    printf("Exit, not enough memory\n");
-    exit(1);
-  }
-  strcpy(newMsg->command, cmd);
-
-  if (params) {
-    newMsg->parameter = malloc(strlen(params)+1);
-    if (newMsg->parameter == NULL) {
-      printf("Exit, not enough memory\n");
-      exit(1);
-    }
-    strcpy(newMsg->parameter, params);
-  }
-  else {
-    newMsg->parameter = NULL;
-  }
+  newMsg->command = cmd;
+  newMsg->parameter = params;
   newMsg->next = NULL;
 
   if (queue_start == NULL) {
@@ -62,14 +50,14 @@ extern int putMessage(char *cmd, char *params)
 }
 
 
-extern int getMessage(char *cmd, char *params)
+extern int getMessage(int *cmd, int *params)
 {
   struct message *msgPtr;
 
   /* you cannot get an entry from an empty list */
   if (queue_start == NULL) {
     printf("Warning; list is empty.\n");
-    *cmd = *params = '\0';
+    *cmd = 0;
     return(0);
   }    
   
@@ -79,27 +67,18 @@ extern int getMessage(char *cmd, char *params)
     msgPtr = msgPtr->next;
 
   /* copy the entry */
-  strcpy(cmd, msgPtr->command);
-  if (msgPtr->parameter)
-    strcpy(params, msgPtr->parameter);
-  else
-    *params = '\0';
-  
+  *cmd = msgPtr->command;
+  *params = msgPtr->parameter;
+
   /* free the memory */
   /*   find the entry before the last entry */
   if (msgPtr == queue_start) {
     queue_start = NULL;
-    free(msgPtr->command);
-    if (msgPtr->parameter)
-      free(msgPtr->parameter);
     free(msgPtr);
   } else {
     msgPtr = queue_start;
     while (msgPtr->next->next) 
       msgPtr = msgPtr->next;
-    free(msgPtr->next->command);
-    if (msgPtr->next->parameter)
-      free(msgPtr->next->parameter);
     free(msgPtr->next);
     msgPtr->next = NULL;
   }
@@ -127,7 +106,8 @@ void usage(char *prog) {
 
 int main(int argc, char *argv[])
 {
-  char buf1[128], buf2[128];
+  char buf1[128];
+  int a1,a2;
   int cnt;
 
   if (argc != 2) {
@@ -137,41 +117,37 @@ int main(int argc, char *argv[])
   fifoInit();
   if (strcmp(argv[1], "1") == 0) {
     printf("putMessage\n");
-    putMessage("command1", "parameter1");
+    putMessage(17, 1);
     printf("getMessage\n");
-    getMessage(buf1,buf2);
-    printf("buf1: %s, buf2: %s\n", buf1, buf2);
+    getMessage(&a1,&a2);
+    printf("Cmd: %d, parameter: %d\n", a1, a2);
   }
   else if (strcmp(argv[1], "2") == 0) {
     for (cnt=0; cnt < 10; cnt++) {
-      sprintf(buf1, "cmd%d", cnt);
-      sprintf(buf2, "param%d", cnt);
-      putMessage(buf1, buf2);
+      putMessage(cnt+100, cnt);
     }
     for (cnt=0; cnt < 10; cnt++) {
-      getMessage(buf1, buf2);
-      printf("Cnt: %d, buf1: %s, buf2: %s.\n", cnt, buf1, buf2);
+      getMessage(&a1, &a2);
+      printf("Cnt: %d, Cmd: %d, Parameter %d.\n", cnt, a1, a2);
     }
   }
   else if (strcmp(argv[1], "3") == 0) {
     for (cnt=0; cnt < 10; cnt++) {
-      sprintf(buf1, "cmd%d", cnt);
-      sprintf(buf2, "param%d", cnt);
-      putMessage(buf1, buf2);
+      putMessage(cnt+100, cnt);
     }
     for (cnt=0; cnt < 11; cnt++) {
-      getMessage(buf1, buf2);
-      printf("Cnt: %d, buf1: %s, buf2: %s.\n", cnt, buf1, buf2);
+      getMessage(&a1, &a2);
+      printf("Cnt: %d, cmd: %d, param: %d.\n", cnt, a1, a2);
     }
   }
   else if (strcmp(argv[1], "4") == 0) {
-    getMessage(buf1,buf2);
-    printf("buf1: %s, buf2: %s\n", buf1, buf2);
+    getMessage(&a1, &a2);
+    printf("cmd: %d, param: %d.\n", a1, a2);
   }
   else if (strcmp(argv[1], "5") == 0) {
-    putMessage("cmd", NULL);
-    getMessage(buf1,buf2);
-    printf("buf1: %s, buf2: %s\n", buf1, buf2);
+    putMessage(110, 10);
+    getMessage(&a1, &a2);
+    printf("cmd: %d, param: %d\n", a1, a2);
   }
   else {
     /*  */
