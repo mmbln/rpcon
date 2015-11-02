@@ -56,7 +56,7 @@ extern int getMessage(int *cmd, int *params)
 
   /* you cannot get an entry from an empty list */
   if (queue_start == NULL) {
-    printf("Warning; list is empty.\n");
+    /* printf("Warning; list is empty.\n"); */
     *cmd = 0;
     return(0);
   }    

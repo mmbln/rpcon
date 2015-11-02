@@ -29,6 +29,7 @@ extern enum globMode gMode;
 extern unsigned char gDigit;
 extern unsigned char gFrequence;
 extern unsigned char gRelais;
+extern int gNextSwitchTime;
 
 static void * threading_socket( void *);
 
@@ -81,6 +82,7 @@ static void processCmd(const char *cmd, const char *param, int socket)
       pthread_mutex_lock(&raspyMutex);
       gMode = onMode;
       putMessage(FF_SWITCH_ON, 0);
+      putMessage(FF_SET_FREQUENCE, 0);
       pthread_cond_signal(&cond);
       pthread_mutex_unlock(&raspyMutex);
     } else if (strcmp(param, "Off") == 0) {
@@ -88,6 +90,7 @@ static void processCmd(const char *cmd, const char *param, int socket)
       pthread_mutex_lock(&raspyMutex);
       gMode = offMode;
       putMessage(FF_SWITCH_OFF, 0);
+      putMessage(FF_SET_FREQUENCE, 0);
       pthread_cond_signal(&cond);
       pthread_mutex_unlock(&raspyMutex);
     } else if (strcmp(param, "Automatic") == 0) {
@@ -175,7 +178,11 @@ void *jsonServer(void *arg)
   }
   address.sin_family = AF_INET;
   address.sin_port = htons (PORT_NUMBER);
+#ifdef __arm__  
+  inet_aton("127.0.0.1", &address.sin_addr);
+#else
   memset (&address.sin_addr, 0, sizeof (address.sin_addr));
+#endif
   setsockopt( sockfd, SOL_SOCKET, 
 	      SO_REUSEADDR, &y, sizeof(int));
   if (bind ( sockfd,

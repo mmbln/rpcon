@@ -24,7 +24,7 @@ enum globCommand gCommand;
 unsigned char gDigit;
 unsigned char gFrequence;
 unsigned char gRelais;
-
+int gNextSwitchTime;
 
 int main (void) {
   static pthread_t conThread, timerThread, jsonThread;

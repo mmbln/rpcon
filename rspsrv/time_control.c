@@ -15,6 +15,7 @@ extern pthread_mutex_t raspyMutex;
 extern pthread_mutex_t timeMutex;
 extern pthread_cond_t cond;
 extern char gTimeStr[];
+extern int gNextSwitchTime;
 
 extern void fifoInit(void);
 extern int putMessage(int, int);
@@ -26,6 +27,7 @@ extern enum globMode gMode;
 struct switchTimes {
   int switchOnTime;
   int switchOffTime;
+  int nextDaySwitchOffTime;
 };
 
 #define BUFFER_SIZE 256
@@ -90,6 +92,7 @@ int calcSwitchTimes(int dayOfYear, struct switchTimes *swt)
   diffSec = (int)(9000.0 * sin((float)(dayOfYear - 80) * TWO_PI / 366.0));
   swt->switchOnTime = 17 * 3600 + 1800 + diffSec;
   swt->switchOffTime = 4 * 3600 + 1800 - diffSec;
+  swt->nextDaySwitchOffTime = 17 * 3600 + 1800 + (int)(9000.0 * sin((float)(dayOfYear - 79) * TWO_PI / 366.0));
 }
 
 void *timeControl(void *arg)
@@ -98,6 +101,7 @@ void *timeControl(void *arg)
   struct tm *tm;
   struct switchTimes swt;
   int timeNow;  
+  int daySeconds;
                      /* 123456789012345678 */
   char timeStr[18];  /* YYYY-MM-DD  HH:MM */
   enum globMode tmpMode;
@@ -120,7 +124,11 @@ void *timeControl(void *arg)
       time(&t);
     }
     tm = gmtime(&t);
-    /* print a printable string */
+    daySeconds = (int)(t) % (3600*24);
+
+    /* calc the switch times of today */
+    calcSwitchTimes(tm->tm_yday, &swt);
+    /* store current time and next switchtime */
     pthread_mutex_lock(&timeMutex);
     sprintf(gTimeStr, "%04d-%02d-%02d  %02d:%02d", 
 	    tm->tm_year + 1900,
@@ -128,24 +136,26 @@ void *timeControl(void *arg)
 	    tm->tm_mday,
 	    tm->tm_hour,
 	    tm->tm_min);
+    if (daySeconds < swt.switchOffTime)
+      gNextSwitchTime = swt.switchOffTime;
+    else if (daySeconds < swt.switchOnTime)
+      gNextSwitchTime = swt.switchOnTime;
+    else
+      gNextSwitchTime = swt.nextDaySwitchOffTime;
     pthread_mutex_unlock(&timeMutex);
-	    
-    if (tmpMode != automaticMode)
-      continue;
 
-    /* calc the switch times of today */
-    calcSwitchTimes(tm->tm_yday, &swt);
-    /* */
     timeNow = (tm->tm_hour * 60 + tm->tm_min) * 60 + tm->tm_sec;
     
     if (timeNow > swt.switchOffTime && timeNow < swt.switchOnTime) {
       /* switch off */
       pthread_mutex_lock(&raspyMutex);
       putMessage(FF_SWITCH_OFF, 0);
+      putMessage(FF_SET_FREQUENCE, 1);
     } else {
       /* switch on */
       pthread_mutex_lock(&raspyMutex);
       putMessage(FF_SWITCH_ON, 0);
+      putMessage(FF_SET_FREQUENCE, 5);
     }
     pthread_cond_signal(&cond);
     pthread_mutex_unlock(&raspyMutex);

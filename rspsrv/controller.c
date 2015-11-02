@@ -9,6 +9,16 @@
 #include "rspsrv.h"
 #include "fifo.h"
 
+#ifdef __arm__
+  #include <linux/i2c-dev.h>
+  #include <fcntl.h>
+  #include <string.h>
+  #include <sys/ioctl.h>
+  #include <sys/types.h>
+  #include <sys/stat.h>
+#endif
+
+
 extern pthread_mutex_t raspyMutex;
 extern pthread_mutex_t timeMutex;
 extern pthread_cond_t cond;
